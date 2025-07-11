@@ -6,7 +6,9 @@ import getpass
 import subprocess
 from openpyxl import Workbook, load_workbook
 
-FILENAME = "inventario_maquinas.xlsx"
+# 🔁 Pasta onde os arquivos serão salvos
+DATA_DIR = "data"
+FILENAME = os.path.join(DATA_DIR, "inventario_maquinas.xlsx")
 
 def get_wmic_value(command):
     try:
