@@ -1,10 +1,10 @@
 # script-inventario
 
-<h1>Sobre o projeto ✍</h1>
+<h2>Sobre o projeto ✍</h2>
 O repositório armazena um script em python para coletar as informações técnicas de uma máquina e inseri-las numa planilha XLSX, planilha essa que será enviada a um dashboard posteriormente.<br>
 <hr>
 
-<h1>Tecnologias e Bibliotecas 📚</h1>
+<h2>Tecnologias e Bibliotecas 📚</h2>
 • Python - linguagem na qual o script foi feito. <br>
 • Platform - informações sobre o sistema.  <br>
 • Socket - obter nome da máquina. <br>
@@ -16,7 +16,7 @@ O repositório armazena um script em python para coletar as informações técni
 
 <hr>
 
-<h1>Como rodar o projeto? 💻</h1>
+<h2>Como rodar o projeto? 💻</h2>
 Antes de iniciar, é necessário que sua máquina tenha uma IDE de desenvolvimento. Python e GIT instalados. Verificado isso, clone o projeto em sua máquina, usando o git bash, com o comando 
 
 ```git clone -url repositório-```. <br>
