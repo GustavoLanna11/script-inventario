@@ -4,10 +4,12 @@ import psutil
 import os
 import getpass
 import subprocess
+import requests
 from openpyxl import Workbook, load_workbook
 
 # 🔁 Pasta onde os arquivos serão salvos
 DATA_DIR = "data"
+os.makedirs(DATA_DIR, exist_ok=True)  # garante que a pasta exista
 FILENAME = os.path.join(DATA_DIR, "inventario_maquinas.xlsx")
 
 def get_wmic_value(command):
@@ -77,7 +79,6 @@ def get_pc_type():
 
 def get_machine_info():
     info = {}
-
     info["Nome da máquina"] = socket.gethostname()
     info["Proprietário"] = getpass.getuser()
     info["Etiqueta"] = ""  # manual
@@ -94,11 +95,9 @@ def get_machine_info():
     info["Tipo de memória"] = get_memory_type()
     info["Pentes"] = "1"  # estimado
     info["Tamanho"] = round(psutil.virtual_memory().total / (1024 ** 3), 2)
-
     disk = psutil.disk_usage('/')
     info["Armazenamento"] = round(disk.total / (1024 ** 3), 2)
-    info["Tipo de armazenamento"] = "SSD ou HDD"  # Pode melhorar depois
-
+    info["Tipo de armazenamento"] = "SSD ou HDD"
     info["Licença Windows"] = get_windows_license_status()
     info["Troca ou Upgrade"] = ""
     info["Prioridade"] = ""
@@ -107,7 +106,6 @@ def get_machine_info():
     info["Em uso?"] = "Sim"
     info["Está no AD?"] = os.environ.get('USERDOMAIN', "")
     info["Observações"] = ""
-
     return info
 
 def save_to_excel(info, filename=FILENAME):
@@ -123,6 +121,21 @@ def save_to_excel(info, filename=FILENAME):
     wb.save(filename)
     print(f"✅ Planilha '{filename}' salva com sucesso!")
 
+def send_api(filepath):
+    try:
+        url = "http:api/upload_excel"  # Substitua pelo IP ou domínio da sua API
+        with open(filepath, "rb") as f:
+            files = {'file': (os.path.basename(filepath), f, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')}
+            response = requests.post(url, files=files)
+
+        if response.status_code == 200:
+            print("✅ Arquivo enviado para a API com sucesso.")
+        else:
+            print(f"⚠️ Erro ao enviar para a API: {response.status_code} - {response.text}")
+    except Exception as e:
+        print(f"⚠️ Falha ao conectar com a API: {e}")
+
 if __name__ == "__main__":
     info = get_machine_info()
     save_to_excel(info)
+    send_api(FILENAME)
