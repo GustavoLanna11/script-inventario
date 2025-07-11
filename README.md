@@ -2,7 +2,6 @@
 
 <h2>Sobre o projeto ✍</h2>
 O repositório armazena um script em python para coletar as informações técnicas de uma máquina e inseri-las numa planilha XLSX, planilha essa que será enviada a um dashboard posteriormente.<br>
-<hr>
 
 <h2>Tecnologias e Bibliotecas 📚</h2>
 • Python - linguagem na qual o script foi feito. <br>
@@ -14,7 +13,6 @@ O repositório armazena um script em python para coletar as informações técni
 • psutil - coletar informações de memória e disco. <br>
 • openpyxl - salvar arquivos em XLSX. <br>
 
-<hr>
 
 <h2>Como rodar o projeto? 💻</h2>
 Antes de iniciar, é necessário que sua máquina tenha uma IDE de desenvolvimento. Python e GIT instalados. Verificado isso, clone o projeto em sua máquina, usando o git bash, com o comando 
