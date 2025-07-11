@@ -25,7 +25,7 @@ Em seguida, abra o terminal e instale a dependência: <br>
 
 • ```pip install openpyxl```
 
-<br><br>
+<br>
 Rode o projeto com: <br>
 
 • ```python inventario_maquina.py``` <br><br>
