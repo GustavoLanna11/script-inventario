@@ -77,20 +77,35 @@ def get_pc_type():
     except Exception:
         return "Erro"
 
+def get_disk_type():
+    try:
+        cmd = [
+            "powershell",
+            "-Command",
+            "Get-PhysicalDisk | Select-Object -First 1 -ExpandProperty MediaType"
+        ]
+        result = subprocess.check_output(cmd, shell=True)
+        media_type = result.decode(errors="ignore").strip()
+        return media_type  # Normalmente 'SSD' ou 'HDD'
+    except Exception:
+        return "Desconhecido"
+
 def get_city_from_ip():
     try:
-        response = requests.get("https://ipinfo.io/json")
-        data = response.json()
-        return data.get("city", "Cidade não encontrada")
+        response = requests.get("https://ipinfo.io/json", timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            return data.get("city", "")
+        return ""
     except Exception:
-        return "Erro ao obter cidade"
+        return ""
 
 def get_machine_info():
     info = {}
     info["Nome da máquina"] = socket.gethostname()
     info["Proprietário"] = getpass.getuser()
     info["Etiqueta"] = ""  # manual
-    info["Cidade"] = get_city_from_ip()  # Detecta cidade automaticamente
+    info["Cidade"] = get_city_from_ip()  # preenchendo a cidade automaticamente
     info["Departamento"] = ""  # manual
     info["Unidade Residente"] = ""  # manual
     info["Marca"] = get_wmic_value("wmic computersystem get manufacturer")
@@ -102,18 +117,32 @@ def get_machine_info():
     info["Troca de máquina"] = ""  # manual
     info["Tipo de memória"] = get_memory_type()
     info["Pentes"] = "1"  # estimado
-    info["Tamanho"] = round(psutil.virtual_memory().total / (1024 ** 3), 2)
+
+    ram_gb = round(psutil.virtual_memory().total / (1024 ** 3), 2)
+    info["Tamanho"] = ram_gb
+
     disk = psutil.disk_usage('/')
     info["Armazenamento"] = round(disk.total / (1024 ** 3), 2)
-    info["Tipo de armazenamento"] = "SSD ou HDD"
+
+    disk_type = get_disk_type()
+    info["Tipo de armazenamento"] = disk_type
+
     info["Licença Windows"] = get_windows_license_status()
-    info["Troca ou Upgrade"] = ""
+
+    # Lógica para Upgrade e Troca ou Upgrade
+    if ram_gb < 4 or disk_type.lower() == "hdd":
+        info["Upgrade?"] = "Sim"
+        info["Troca ou Upgrade"] = "Upgrade"
+    else:
+        info["Upgrade?"] = "Não"
+        info["Troca ou Upgrade"] = ""
+
     info["Prioridade"] = ""
     info["Antivírus"] = ""
-    info["Upgrade?"] = ""
     info["Em uso?"] = "Sim"
     info["Está no AD?"] = os.environ.get('USERDOMAIN', "")
     info["Observações"] = ""
+
     return info
 
 def save_to_excel(info, filename=FILENAME):
