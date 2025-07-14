@@ -77,12 +77,20 @@ def get_pc_type():
     except Exception:
         return "Erro"
 
+def get_city_from_ip():
+    try:
+        response = requests.get("https://ipinfo.io/json")
+        data = response.json()
+        return data.get("city", "Cidade não encontrada")
+    except Exception:
+        return "Erro ao obter cidade"
+
 def get_machine_info():
     info = {}
     info["Nome da máquina"] = socket.gethostname()
     info["Proprietário"] = getpass.getuser()
     info["Etiqueta"] = ""  # manual
-    info["Cidade"] = ""    # manual
+    info["Cidade"] = get_city_from_ip()  # Detecta cidade automaticamente
     info["Departamento"] = ""  # manual
     info["Unidade Residente"] = ""  # manual
     info["Marca"] = get_wmic_value("wmic computersystem get manufacturer")
@@ -123,7 +131,7 @@ def save_to_excel(info, filename=FILENAME):
 
 def send_api(filepath):
     try:
-        url = "http:api/upload_excel"  # Substitua pelo IP ou domínio da sua API
+        url = "http://192.168.0.138:5000//upload_excel"  # Substitua pelo IP ou domínio da sua API
         with open(filepath, "rb") as f:
             files = {'file': (os.path.basename(filepath), f, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')}
             response = requests.post(url, files=files)
