@@ -9,7 +9,7 @@ from openpyxl import Workbook, load_workbook
 
 # 🔁 Pasta onde os arquivos serão salvos
 DATA_DIR = "data"
-os.makedirs(DATA_DIR, exist_ok=True)  # garante que a pasta exista
+os.makedirs(DATA_DIR, exist_ok=True)
 FILENAME = os.path.join(DATA_DIR, "inventario_maquinas.xlsx")
 
 def get_wmic_value(command):
@@ -85,8 +85,12 @@ def get_disk_type():
             "Get-PhysicalDisk | Select-Object -First 1 -ExpandProperty MediaType"
         ]
         result = subprocess.check_output(cmd, shell=True)
-        media_type = result.decode(errors="ignore").strip()
-        return media_type  # Normalmente 'SSD' ou 'HDD'
+        media_type = result.decode(errors="ignore").strip().lower()
+
+        if media_type in ["ssd", "hdd"]:
+            return media_type.upper()
+        else:
+            return "Desconhecido"
     except Exception:
         return "Desconhecido"
 
@@ -104,19 +108,19 @@ def get_machine_info():
     info = {}
     info["Nome da máquina"] = socket.gethostname()
     info["Proprietário"] = getpass.getuser()
-    info["Etiqueta"] = ""  # manual
-    info["Cidade"] = get_city_from_ip()  # preenchendo a cidade automaticamente
-    info["Departamento"] = ""  # manual
-    info["Unidade Residente"] = ""  # manual
+    info["Etiqueta"] = ""
+    info["Cidade"] = get_city_from_ip()
+    info["Departamento"] = ""
+    info["Unidade Residente"] = ""
     info["Marca"] = get_wmic_value("wmic computersystem get manufacturer")
     info["Número de Série"] = get_wmic_value("wmic bios get serialnumber")
     info["Tipo"] = get_pc_type()
     info["Modelo"] = get_wmic_value("wmic computersystem get model")
     info["Licença"] = get_windows_name()
     info["Processador"] = get_wmic_value("wmic cpu get name")
-    info["Troca de máquina"] = ""  # manual
+    info["Troca de máquina"] = ""
     info["Tipo de memória"] = get_memory_type()
-    info["Pentes"] = "1"  # estimado
+    info["Pentes"] = "1"
 
     ram_gb = round(psutil.virtual_memory().total / (1024 ** 3), 2)
     info["Tamanho"] = ram_gb
@@ -126,16 +130,17 @@ def get_machine_info():
 
     disk_type = get_disk_type()
     info["Tipo de armazenamento"] = disk_type
+    print(f"[DEBUG] Tipo de armazenamento identificado: {disk_type}")
 
     info["Licença Windows"] = get_windows_license_status()
 
-    # Lógica para Upgrade e Troca ou Upgrade
+    # Lógica final para upgrade/troca
     if ram_gb < 4 or disk_type.lower() == "hdd":
         info["Upgrade?"] = "Sim"
         info["Troca ou Upgrade"] = "Upgrade"
     else:
         info["Upgrade?"] = "Não"
-        info["Troca ou Upgrade"] = ""
+        info["Troca ou Upgrade"] = "N/A"
 
     info["Prioridade"] = ""
     info["Antivírus"] = ""
@@ -160,7 +165,7 @@ def save_to_excel(info, filename=FILENAME):
 
 def send_api(filepath):
     try:
-        url = "http://192.168.0.138:5000//upload_excel"  # Substitua pelo IP ou domínio da sua API
+        url = "http://192.168.0.138:5000//upload_excel"
         with open(filepath, "rb") as f:
             files = {'file': (os.path.basename(filepath), f, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')}
             response = requests.post(url, files=files)
