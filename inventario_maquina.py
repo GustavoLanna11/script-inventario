@@ -104,7 +104,6 @@ def get_city_from_ip():
     except Exception:
         return ""
 
-# ✅ NOVA FUNÇÃO: detecta se Kaspersky está instalado via WMI
 def has_kaspersky():
     try:
         cmd = [
@@ -120,6 +119,18 @@ def has_kaspersky():
 
 def get_machine_info():
     info = {}
+    processor_name = get_wmic_value("wmic cpu get name").strip()
+
+    # Lista de processadores considerados fracos
+    weak_cpus = [
+        "intel core i3-2120", "intel core i3-3220", "intel core i3-4130",
+        "intel core i5-2430m", "amd a4-6300", "intel core i3-4005u",
+        "intel core i3-5015u", "intel celeron j1800", "intel celeron g460",
+        "intel core i3-3217u"
+    ]
+
+    normalized_processor = processor_name.lower().split("@")[0].split("cpu")[0].strip()
+
     info["Nome da máquina"] = socket.gethostname()
     info["Proprietário"] = getpass.getuser()
     info["Etiqueta"] = ""
@@ -131,8 +142,7 @@ def get_machine_info():
     info["Tipo"] = get_pc_type()
     info["Modelo"] = get_wmic_value("wmic computersystem get model")
     info["Licença"] = get_windows_name()
-    info["Processador"] = get_wmic_value("wmic cpu get name")
-    info["Troca de máquina"] = ""
+    info["Processador"] = processor_name
     info["Tipo de memória"] = get_memory_type()
     info["Pentes"] = "1"
 
@@ -146,34 +156,60 @@ def get_machine_info():
     info["Tipo de armazenamento"] = disk_type
     print(f"[DEBUG] Tipo de armazenamento identificado: {disk_type}")
 
-    info["Licença Windows"] = get_windows_license_status()
-
-    # Lógica final para upgrade/troca
-    if ram_gb < 4 or disk_type.lower() == "hdd":
-        info["Upgrade?"] = "Sim"
-        info["Troca ou Upgrade"] = "Upgrade"
-    else:
-        info["Upgrade?"] = "Não"
-        info["Troca ou Upgrade"] = "N/A"
-
-    info["Prioridade"] = ""
-    info["Antivírus"] = has_kaspersky()  # 👈 Aqui usamos a verificação do Kaspersky
+    info["Antivírus"] = has_kaspersky()
     info["Em uso?"] = "Sim"
     info["Está no AD?"] = os.environ.get('USERDOMAIN', "")
     info["Observações"] = ""
 
+    is_weak_cpu = any(cpu in normalized_processor for cpu in weak_cpus)
+
+    if is_weak_cpu:
+        info["Troca de máquina"] = "Sim"
+        info["Upgrade?"] = "Não"
+        info["Troca ou Upgrade"] = "Troca"
+        info["Prioridade"] = "Alta"
+        info["Licença Windows"] = "Máquina para troca"
+    else:
+        info["Troca de máquina"] = "Não"
+        if ram_gb < 4 or disk_type.lower() == "hdd":
+            info["Upgrade?"] = "Sim"
+            info["Troca ou Upgrade"] = "Upgrade"
+            info["Prioridade"] = "Não será trocado"
+            info["Licença Windows"] = get_windows_license_status()
+        else:
+            info["Upgrade?"] = "Não"
+            info["Licença Windows"] = get_windows_license_status()
+
+            # Aqui está a alteração para colocar "Nenhum"
+            if info["Troca de máquina"] == "Não" and info["Upgrade?"] == "Não":
+                info["Troca ou Upgrade"] = "Nenhum"
+            else:
+                info["Troca ou Upgrade"] = ""
+
+            info["Prioridade"] = ""
+
     return info
 
 def save_to_excel(info, filename=FILENAME):
+    ordered_keys = [
+        "Nome da máquina", "Proprietário", "Etiqueta", "Cidade", "Departamento",
+        "Unidade Residente", "Marca", "Número de Série", "Tipo", "Modelo",
+        "Licença", "Processador", "Troca de máquina", "Tipo de memória", "Pentes",
+        "Tamanho", "Armazenamento", "Tipo de armazenamento", "Licença Windows",
+        "Troca ou Upgrade", "Prioridade", "Antivírus", "Upgrade?", "Em uso?",
+        "Está no AD?", "Observações"
+    ]
+
     try:
         wb = load_workbook(filename)
         ws = wb.active
     except FileNotFoundError:
         wb = Workbook()
         ws = wb.active
-        ws.append(list(info.keys()))
+        ws.append(ordered_keys)
 
-    ws.append(list(info.values()))
+    row = [info.get(key, "") for key in ordered_keys]
+    ws.append(row)
     wb.save(filename)
     print(f"✅ Planilha '{filename}' salva com sucesso!")
 
