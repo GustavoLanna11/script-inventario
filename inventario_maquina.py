@@ -7,7 +7,6 @@ import subprocess
 import requests
 from openpyxl import Workbook, load_workbook
 
-# 🔁 Pasta onde os arquivos serão salvos
 DATA_DIR = "data"
 os.makedirs(DATA_DIR, exist_ok=True)
 FILENAME = os.path.join(DATA_DIR, "inventario_maquinas.xlsx")
@@ -86,7 +85,6 @@ def get_disk_type():
         ]
         result = subprocess.check_output(cmd, shell=True)
         media_type = result.decode(errors="ignore").strip().lower()
-
         if media_type in ["ssd", "hdd"]:
             return media_type.upper()
         else:
@@ -120,15 +118,12 @@ def has_kaspersky():
 def get_machine_info():
     info = {}
     processor_name = get_wmic_value("wmic cpu get name").strip()
-
-    # Lista de processadores considerados fracos
     weak_cpus = [
         "intel core i3-2120", "intel core i3-3220", "intel core i3-4130",
         "intel core i5-2430m", "amd a4-6300", "intel core i3-4005u",
         "intel core i3-5015u", "intel celeron j1800", "intel celeron g460",
         "intel core i3-3217u"
     ]
-
     normalized_processor = processor_name.lower().split("@")[0].split("cpu")[0].strip()
 
     info["Nome da máquina"] = socket.gethostname()
@@ -174,19 +169,16 @@ def get_machine_info():
         if ram_gb < 4 or disk_type.lower() == "hdd":
             info["Upgrade?"] = "Sim"
             info["Troca ou Upgrade"] = "Upgrade"
-            info["Prioridade"] = "Não será trocado"
+            info["Prioridade"] = "Não será trocada"
             info["Licença Windows"] = get_windows_license_status()
         else:
             info["Upgrade?"] = "Não"
             info["Licença Windows"] = get_windows_license_status()
-
-            # Aqui está a alteração para colocar "Nenhum"
             if info["Troca de máquina"] == "Não" and info["Upgrade?"] == "Não":
                 info["Troca ou Upgrade"] = "Nenhum"
             else:
                 info["Troca ou Upgrade"] = ""
-
-            info["Prioridade"] = ""
+            info["Prioridade"] = "Não será trocada"
 
     return info
 
