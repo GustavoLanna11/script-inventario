@@ -104,6 +104,20 @@ def get_city_from_ip():
     except Exception:
         return ""
 
+# ✅ NOVA FUNÇÃO: detecta se Kaspersky está instalado via WMI
+def has_kaspersky():
+    try:
+        cmd = [
+            "powershell",
+            "-Command",
+            "Get-CimInstance -Namespace root/SecurityCenter2 -ClassName AntivirusProduct | Select-Object -ExpandProperty displayName"
+        ]
+        result = subprocess.check_output(cmd, shell=True)
+        output = result.decode(errors="ignore").lower()
+        return "Sim" if "kaspersky" in output else "Não"
+    except Exception:
+        return "Erro"
+
 def get_machine_info():
     info = {}
     info["Nome da máquina"] = socket.gethostname()
@@ -143,7 +157,7 @@ def get_machine_info():
         info["Troca ou Upgrade"] = "N/A"
 
     info["Prioridade"] = ""
-    info["Antivírus"] = ""
+    info["Antivírus"] = has_kaspersky()  # 👈 Aqui usamos a verificação do Kaspersky
     info["Em uso?"] = "Sim"
     info["Está no AD?"] = os.environ.get('USERDOMAIN', "")
     info["Observações"] = ""
