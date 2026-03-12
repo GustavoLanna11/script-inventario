@@ -11,6 +11,9 @@ DATA_DIR = "data"
 os.makedirs(DATA_DIR, exist_ok=True)
 FILENAME = os.path.join(DATA_DIR, "inventario_maquinas.xlsx")
 
+API_URL = "https://api-inventario-maquinas.onrender.com/upload_excel"
+
+
 def get_wmic_value(command):
     try:
         result = subprocess.check_output(command, shell=True)
@@ -18,6 +21,7 @@ def get_wmic_value(command):
         return lines[1].strip() if len(lines) > 1 else "Não encontrado"
     except Exception:
         return "Erro"
+
 
 def get_windows_name():
     try:
@@ -29,6 +33,7 @@ def get_windows_name():
     except Exception:
         return "Erro"
 
+
 def get_windows_license_status():
     try:
         result = subprocess.check_output(
@@ -39,6 +44,7 @@ def get_windows_license_status():
         return "Sim" if "permanente" in output or "permanently" in output else "Não"
     except Exception:
         return "Erro"
+
 
 def get_memory_type():
     try:
@@ -61,6 +67,7 @@ def get_memory_type():
     except Exception:
         return "Erro"
 
+
 def get_pc_type():
     try:
         result = subprocess.check_output('wmic computersystem get pcSystemType', shell=True)
@@ -75,6 +82,7 @@ def get_pc_type():
         return pc_types.get(code, 'Outro')
     except Exception:
         return "Erro"
+
 
 def get_disk_type():
     try:
@@ -92,6 +100,7 @@ def get_disk_type():
     except Exception:
         return "Desconhecido"
 
+
 def get_city_from_ip():
     try:
         response = requests.get("https://ipinfo.io/json", timeout=5)
@@ -101,6 +110,7 @@ def get_city_from_ip():
         return ""
     except Exception:
         return ""
+
 
 def has_kaspersky():
     try:
@@ -115,15 +125,19 @@ def has_kaspersky():
     except Exception:
         return "Erro"
 
+
 def get_machine_info():
     info = {}
+
     processor_name = get_wmic_value("wmic cpu get name").strip()
+
     weak_cpus = [
         "intel core i3-2120", "intel core i3-3220", "intel core i3-4130",
         "intel core i5-2430m", "amd a4-6300", "intel core i3-4005u",
         "intel core i3-5015u", "intel celeron j1800", "intel celeron g460",
         "intel core i3-3217u"
     ]
+
     normalized_processor = processor_name.lower().split("@")[0].split("cpu")[0].strip()
 
     info["Nome da máquina"] = socket.gethostname()
@@ -149,7 +163,6 @@ def get_machine_info():
 
     disk_type = get_disk_type()
     info["Tipo de armazenamento"] = disk_type
-    print(f"[DEBUG] Tipo de armazenamento identificado: {disk_type}")
 
     info["Antivírus"] = has_kaspersky()
     info["Em uso?"] = "Sim"
@@ -166,23 +179,24 @@ def get_machine_info():
         info["Licença Windows"] = "Máquina para troca"
     else:
         info["Troca de máquina"] = "Não"
+
         if ram_gb < 4 or disk_type.lower() == "hdd":
             info["Upgrade?"] = "Sim"
             info["Troca ou Upgrade"] = "Upgrade"
             info["Prioridade"] = "Não será trocada"
             info["Licença Windows"] = get_windows_license_status()
+
         else:
             info["Upgrade?"] = "Não"
             info["Licença Windows"] = get_windows_license_status()
-            if info["Troca de máquina"] == "Não" and info["Upgrade?"] == "Não":
-                info["Troca ou Upgrade"] = "Nenhum"
-            else:
-                info["Troca ou Upgrade"] = ""
+            info["Troca ou Upgrade"] = "Nenhum"
             info["Prioridade"] = "Não será trocada"
 
     return info
 
+
 def save_to_excel(info, filename=FILENAME):
+
     ordered_keys = [
         "Nome da máquina", "Proprietário", "Etiqueta", "Cidade", "Departamento",
         "Unidade Residente", "Marca", "Número de Série", "Tipo", "Modelo",
@@ -201,25 +215,42 @@ def save_to_excel(info, filename=FILENAME):
         ws.append(ordered_keys)
 
     row = [info.get(key, "") for key in ordered_keys]
+
     ws.append(row)
     wb.save(filename)
+
     print(f"✅ Planilha '{filename}' salva com sucesso!")
+
 
 def send_api(filepath):
     try:
-        url = "http://192.168.0.138:5000//upload_excel"
+
         with open(filepath, "rb") as f:
-            files = {'file': (os.path.basename(filepath), f, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')}
-            response = requests.post(url, files=files)
+
+            files = {
+                "file": (
+                    os.path.basename(filepath),
+                    f,
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+            }
+
+            response = requests.post(API_URL, files=files, timeout=30)
 
         if response.status_code == 200:
-            print("✅ Arquivo enviado para a API com sucesso.")
+            print("🌐✅ Inventário enviado para API online com sucesso!")
+
         else:
-            print(f"⚠️ Erro ao enviar para a API: {response.status_code} - {response.text}")
+            print(f"⚠️ Erro ao enviar para API: {response.status_code} - {response.text}")
+
     except Exception as e:
         print(f"⚠️ Falha ao conectar com a API: {e}")
 
+
 if __name__ == "__main__":
+
     info = get_machine_info()
+
     save_to_excel(info)
+
     send_api(FILENAME)
