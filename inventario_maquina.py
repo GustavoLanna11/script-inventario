@@ -11,7 +11,7 @@ DATA_DIR = "data"
 os.makedirs(DATA_DIR, exist_ok=True)
 FILENAME = os.path.join(DATA_DIR, "inventario_maquinas.xlsx")
 
-API_URL = "https://api-inventario-maquinas.onrender.com/upload_excel"
+API_URL = "https://api-inventario-wudx.onrender.com/upload_excel"
 
 
 def get_wmic_value(command):
