@@ -5,11 +5,6 @@ import os
 import getpass
 import subprocess
 import requests
-from openpyxl import Workbook, load_workbook
-
-DATA_DIR = "data"
-os.makedirs(DATA_DIR, exist_ok=True)
-FILENAME = os.path.join(DATA_DIR, "inventario_maquinas.xlsx")
 
 API_URL = "https://api-inventario-wudx.onrender.com/upload_excel"
 
@@ -185,7 +180,6 @@ def get_machine_info():
             info["Troca ou Upgrade"] = "Upgrade"
             info["Prioridade"] = "Não será trocada"
             info["Licença Windows"] = get_windows_license_status()
-
         else:
             info["Upgrade?"] = "Não"
             info["Licença Windows"] = get_windows_license_status()
@@ -195,51 +189,42 @@ def get_machine_info():
     return info
 
 
-def save_to_excel(info, filename=FILENAME):
+def normalize_data(info):
 
-    ordered_keys = [
-        "Nome da máquina", "Proprietário", "Etiqueta", "Cidade", "Departamento",
-        "Unidade Residente", "Marca", "Número de Série", "Tipo", "Modelo",
-        "Licença", "Processador", "Troca de máquina", "Tipo de memória", "Pentes",
-        "Tamanho", "Armazenamento", "Tipo de armazenamento", "Licença Windows",
-        "Troca ou Upgrade", "Prioridade", "Antivírus", "Upgrade?", "Em uso?",
-        "Está no AD?", "Observações"
+    string_fields = [
+        "Departamento",
+        "Cidade",
+        "Etiqueta",
+        "Observações",
+        "Unidade Residente"
     ]
 
+    for field in string_fields:
+        value = info.get(field)
+
+        if value is None or value == "":
+            info[field] = None
+        else:
+            info[field] = str(value)
+
     try:
-        wb = load_workbook(filename)
-        ws = wb.active
-    except FileNotFoundError:
-        wb = Workbook()
-        ws = wb.active
-        ws.append(ordered_keys)
+        info["Pentes"] = int(info.get("Pentes", 0))
+    except:
+        info["Pentes"] = 0
 
-    row = [info.get(key, "") for key in ordered_keys]
-
-    ws.append(row)
-    wb.save(filename)
-
-    print(f"✅ Planilha '{filename}' salva com sucesso!")
+    return info
 
 
-def send_api(filepath):
+def send_api(info):
     try:
-
-        with open(filepath, "rb") as f:
-
-            files = {
-                "file": (
-                    os.path.basename(filepath),
-                    f,
-                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
-            }
-
-            response = requests.post(API_URL, files=files, timeout=30)
+        response = requests.post(
+            API_URL,
+            json=info,
+            timeout=10
+        )
 
         if response.status_code == 200:
-            print("🌐✅ Inventário enviado para API online com sucesso!")
-
+            print("🌐✅ Inventário enviado para API com sucesso!")
         else:
             print(f"⚠️ Erro ao enviar para API: {response.status_code} - {response.text}")
 
@@ -248,9 +233,6 @@ def send_api(filepath):
 
 
 if __name__ == "__main__":
-
     info = get_machine_info()
-
-    save_to_excel(info)
-
-    send_api(FILENAME)
+    info = normalize_data(info)
+    send_api(info)
