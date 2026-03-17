@@ -9,24 +9,43 @@ import requests
 API_URL = "https://api-inventario-wudx.onrender.com/upload_excel"
 
 
-def get_wmic_value(command):
-    try:
-        result = subprocess.check_output(command, shell=True)
-        lines = result.decode(errors="ignore").strip().split('\n')
-        return lines[1].strip() if len(lines) > 1 else "Não encontrado"
-    except Exception:
-        return "Erro"
+# 🔥 FUNÇÃO CENTRAL DE FALLBACK
+def run_command_with_fallback(ps_command=None, wmic_command=None, fallback=None):
+    if ps_command:
+        try:
+            result = subprocess.check_output(
+                ["powershell", "-Command", ps_command],
+                shell=True
+            )
+            value = result.decode(errors="ignore").strip()
+            if value:
+                return value
+        except:
+            pass
+
+    if wmic_command:
+        try:
+            result = subprocess.check_output(wmic_command, shell=True)
+            lines = result.decode(errors="ignore").strip().split('\n')
+            if len(lines) > 1:
+                return lines[1].strip()
+        except:
+            pass
+
+    if fallback:
+        try:
+            return fallback()
+        except:
+            pass
+
+    return "Não encontrado"
 
 
 def get_windows_name():
-    try:
-        result = subprocess.check_output(
-            ["powershell", "-Command", "(Get-CimInstance Win32_OperatingSystem).Caption"],
-            shell=True
-        )
-        return result.decode(errors="ignore").strip()
-    except Exception:
-        return "Erro"
+    return run_command_with_fallback(
+        ps_command="(Get-CimInstance Win32_OperatingSystem).Caption",
+        fallback=lambda: platform.system()
+    )
 
 
 def get_windows_license_status():
@@ -37,94 +56,85 @@ def get_windows_license_status():
         )
         output = result.decode(errors="ignore").lower()
         return "Sim" if "permanente" in output or "permanently" in output else "Não"
-    except Exception:
+    except:
         return "Erro"
 
 
 def get_memory_type():
     try:
-        cmd = [
-            "powershell",
-            "-Command",
-            "Get-CimInstance Win32_PhysicalMemory | Select-Object -First 1 -ExpandProperty SMBIOSMemoryType"
-        ]
-        result = subprocess.check_output(cmd, shell=True)
+        result = subprocess.check_output(
+            ["powershell", "-Command",
+             "Get-CimInstance Win32_PhysicalMemory | Select-Object -First 1 -ExpandProperty SMBIOSMemoryType"],
+            shell=True
+        )
         code = int(result.decode(errors="ignore").strip())
         memory_types = {
-            20: "DDR",
-            21: "DDR2",
-            22: "DDR2 FB-DIMM",
-            24: "DDR3",
-            26: "DDR4",
-            30: "DDR5"
+            20: "DDR", 21: "DDR2", 24: "DDR3", 26: "DDR4", 30: "DDR5"
         }
-        return memory_types.get(code, f"Desconhecido (código {code})")
-    except Exception:
+        return memory_types.get(code, f"Desconhecido ({code})")
+    except:
         return "Erro"
 
 
+# ✅ CORREÇÃO AQUI
 def get_pc_type():
-    try:
-        result = subprocess.check_output('wmic computersystem get pcSystemType', shell=True)
-        lines = result.decode(errors="ignore").strip().split('\n')
-        if len(lines) < 2:
-            return "Desconhecido"
-        code = lines[1].strip()
-        pc_types = {
-            '1': 'Desktop',
-            '2': 'Notebook'
-        }
-        return pc_types.get(code, 'Outro')
-    except Exception:
-        return "Erro"
+    result = run_command_with_fallback(
+        ps_command="(Get-CimInstance Win32_ComputerSystem).PCSystemType",
+        wmic_command="wmic computersystem get pcSystemType",
+        fallback=lambda: "Desconhecido"
+    )
+
+    clean = "".join(filter(str.isdigit, str(result)))
+
+    pc_types = {
+        "1": "Desktop",
+        "2": "Notebook"
+    }
+
+    return pc_types.get(clean, "Outro")
 
 
 def get_disk_type():
     try:
-        cmd = [
-            "powershell",
-            "-Command",
-            "Get-PhysicalDisk | Select-Object -First 1 -ExpandProperty MediaType"
-        ]
-        result = subprocess.check_output(cmd, shell=True)
-        media_type = result.decode(errors="ignore").strip().lower()
-        if media_type in ["ssd", "hdd"]:
-            return media_type.upper()
-        else:
-            return "Desconhecido"
-    except Exception:
+        result = subprocess.check_output(
+            ["powershell", "-Command",
+             "Get-PhysicalDisk | Select-Object -First 1 -ExpandProperty MediaType"],
+            shell=True
+        )
+        media = result.decode(errors="ignore").strip().lower()
+        return media.upper() if media in ["ssd", "hdd"] else "Desconhecido"
+    except:
         return "Desconhecido"
 
 
 def get_city_from_ip():
     try:
         response = requests.get("https://ipinfo.io/json", timeout=5)
-        if response.status_code == 200:
-            data = response.json()
-            return data.get("city", "")
-        return ""
-    except Exception:
+        return response.json().get("city", "") if response.status_code == 200 else ""
+    except:
         return ""
 
 
 def has_kaspersky():
     try:
-        cmd = [
-            "powershell",
-            "-Command",
-            "Get-CimInstance -Namespace root/SecurityCenter2 -ClassName AntivirusProduct | Select-Object -ExpandProperty displayName"
-        ]
-        result = subprocess.check_output(cmd, shell=True)
-        output = result.decode(errors="ignore").lower()
-        return "Sim" if "kaspersky" in output else "Não"
-    except Exception:
+        result = subprocess.check_output(
+            ["powershell", "-Command",
+             "Get-CimInstance -Namespace root/SecurityCenter2 -ClassName AntivirusProduct | Select-Object -ExpandProperty displayName"],
+            shell=True
+        )
+        return "Sim" if "kaspersky" in result.decode(errors="ignore").lower() else "Não"
+    except:
         return "Erro"
 
 
 def get_machine_info():
     info = {}
 
-    processor_name = get_wmic_value("wmic cpu get name").strip()
+    processor_name = run_command_with_fallback(
+        ps_command="(Get-CimInstance Win32_Processor).Name",
+        wmic_command="wmic cpu get name",
+        fallback=lambda: platform.processor()
+    )
 
     weak_cpus = [
         "intel core i3-2120", "intel core i3-3220", "intel core i3-4130",
@@ -141,10 +151,24 @@ def get_machine_info():
     info["Cidade"] = get_city_from_ip()
     info["Departamento"] = ""
     info["Unidade Residente"] = ""
-    info["Marca"] = get_wmic_value("wmic computersystem get manufacturer")
-    info["Número de Série"] = get_wmic_value("wmic bios get serialnumber")
+
+    info["Marca"] = run_command_with_fallback(
+        ps_command="(Get-CimInstance Win32_ComputerSystem).Manufacturer",
+        wmic_command="wmic computersystem get manufacturer"
+    )
+
+    info["Número de Série"] = run_command_with_fallback(
+        ps_command="(Get-CimInstance Win32_BIOS).SerialNumber",
+        wmic_command="wmic bios get serialnumber"
+    )
+
     info["Tipo"] = get_pc_type()
-    info["Modelo"] = get_wmic_value("wmic computersystem get model")
+
+    info["Modelo"] = run_command_with_fallback(
+        ps_command="(Get-CimInstance Win32_ComputerSystem).Model",
+        wmic_command="wmic computersystem get model"
+    )
+
     info["Licença"] = get_windows_name()
     info["Processador"] = processor_name
     info["Tipo de memória"] = get_memory_type()
@@ -155,9 +179,7 @@ def get_machine_info():
 
     disk = psutil.disk_usage('/')
     info["Armazenamento"] = round(disk.total / (1024 ** 3), 2)
-
-    disk_type = get_disk_type()
-    info["Tipo de armazenamento"] = disk_type
+    info["Tipo de armazenamento"] = get_disk_type()
 
     info["Antivírus"] = has_kaspersky()
     info["Em uso?"] = "Sim"
@@ -175,7 +197,7 @@ def get_machine_info():
     else:
         info["Troca de máquina"] = "Não"
 
-        if ram_gb < 4 or disk_type.lower() == "hdd":
+        if ram_gb < 4 or info["Tipo de armazenamento"].lower() == "hdd":
             info["Upgrade?"] = "Sim"
             info["Troca ou Upgrade"] = "Upgrade"
             info["Prioridade"] = "Não será trocada"
@@ -190,7 +212,6 @@ def get_machine_info():
 
 
 def normalize_data(info):
-
     string_fields = [
         "Departamento",
         "Cidade",
@@ -201,11 +222,7 @@ def normalize_data(info):
 
     for field in string_fields:
         value = info.get(field)
-
-        if value is None or value == "":
-            info[field] = None
-        else:
-            info[field] = str(value)
+        info[field] = None if value in ["", None] else str(value)
 
     try:
         info["Pentes"] = int(info.get("Pentes", 0))
@@ -217,19 +234,15 @@ def normalize_data(info):
 
 def send_api(info):
     try:
-        response = requests.post(
-            API_URL,
-            json=info,
-            timeout=10
-        )
+        response = requests.post(API_URL, json=info, timeout=10)
 
         if response.status_code == 200:
-            print("🌐✅ Inventário enviado para API com sucesso!")
+            print("🌐✅ Inventário enviado com sucesso!")
         else:
-            print(f"⚠️ Erro ao enviar para API: {response.status_code} - {response.text}")
+            print(f"⚠️ Erro API: {response.status_code} - {response.text}")
 
     except Exception as e:
-        print(f"⚠️ Falha ao conectar com a API: {e}")
+        print(f"⚠️ Falha conexão API: {e}")
 
 
 if __name__ == "__main__":
