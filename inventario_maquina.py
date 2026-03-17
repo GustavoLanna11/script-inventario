@@ -8,8 +8,6 @@ import requests
 
 API_URL = "https://api-inventario-wudx.onrender.com/upload_excel"
 
-
-# 🔥 FUNÇÃO CENTRAL DE FALLBACK
 def run_command_with_fallback(ps_command=None, wmic_command=None, fallback=None):
     if ps_command:
         try:
@@ -75,8 +73,6 @@ def get_memory_type():
     except:
         return "Erro"
 
-
-# ✅ CORREÇÃO AQUI
 def get_pc_type():
     result = run_command_with_fallback(
         ps_command="(Get-CimInstance Win32_ComputerSystem).PCSystemType",
