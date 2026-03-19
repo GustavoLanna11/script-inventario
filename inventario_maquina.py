@@ -6,7 +6,11 @@ import getpass
 import subprocess
 import requests
 
-API_URL = "https://api-inventario-wudx.onrender.com/upload_excel"
+# Passe sua URL de Post da API aqui
+API_URL = "URL_API"
+
+# Configure uma chave de API e adicione aqui
+API_TOKEN = os.environ.get("API_SECRET_TOKEN")
 
 def run_command_with_fallback(ps_command=None, wmic_command=None, fallback=None):
     if ps_command:
@@ -230,7 +234,12 @@ def normalize_data(info):
 
 def send_api(info):
     try:
-        response = requests.post(API_URL, json=info, timeout=10)
+        headers = {}
+
+        if API_TOKEN:
+            headers["Authorization"] = f"Bearer {API_TOKEN}"
+
+        response = requests.post(API_URL, json=info, headers=headers, timeout=10)
 
         if response.status_code == 200:
             print("🌐✅ Inventário enviado com sucesso!")
